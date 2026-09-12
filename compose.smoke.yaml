@@ -1,0 +1,8 @@
+# Test-only override. Never use these certificates or credentials for production.
+services:
+  web:
+    ports: ["127.0.0.1::443"]
+    volumes:
+      - ./test-results/tls/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./test-results/tls/cert.pem:/etc/nginx/test-cert.pem:ro
+      - ./test-results/tls/key.pem:/etc/nginx/test-key.pem:ro

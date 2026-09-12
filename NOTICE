@@ -1,0 +1,18 @@
+Neo Podcast Generator
+Copyright (C) 2026 Neo Podcast Generator contributors
+SPDX-License-Identifier: GPL-3.0-only
+
+An independent ground-up implementation inspired by Podcast Generator:
+https://github.com/PodcastGenerator/PodcastGenerator
+
+Podcast Generator was created by Alberto Betella, with contributions from
+Emil Engler, Chris Charabaruk, and the Podcast Generator community. Its
+upstream source is GPL-3.0. The upload flow, feed entrypoint, public archive,
+and administrative structure were reviewed as references. No upstream PHP
+implementation, branding assets, or bundled dependencies were copied here.
+
+Spotify and Spotify for Creators are names of their respective owner.
+Neo is not affiliated with or endorsed by Spotify or Podcast Generator.
+
+PHP, FFmpeg, Composer, system dependencies, and the separate Nginx container
+retain their respective licenses and notices.

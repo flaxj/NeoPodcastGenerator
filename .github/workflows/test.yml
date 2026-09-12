@@ -1,0 +1,13 @@
+name: Validate application
+on: [push, pull_request]
+jobs:
+  integration:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Lint PHP and run real media integration tests in Docker
+        run: |
+          docker compose -f compose.test.yaml build
+          docker compose -f compose.test.yaml run --rm test sh -c 'find src templates public bin tests -name "*.php" -print0 | xargs -0 -n1 php -l && php tests/run.php'
+      - name: Test HTTPS Nginx delivery and persistence in the full stack
+        run: bash tests/stack.sh

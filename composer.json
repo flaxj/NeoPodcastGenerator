@@ -1,0 +1,9 @@
+{
+  "name": "neo-podcast-generator/neo-podcast-generator",
+  "description": "Self-hosted audio and video podcast publishing",
+  "type": "project",
+  "license": "GPL-3.0-only",
+  "require": {"php": "^8.4", "ext-pdo": "*", "ext-pdo_sqlite": "*", "ext-dom": "*", "ext-fileinfo": "*"},
+  "autoload": {"psr-4": {"Neo\\": "src/"}},
+  "scripts": {"test": "php tests/run.php"}
+}

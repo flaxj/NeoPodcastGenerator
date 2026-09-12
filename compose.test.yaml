@@ -1,0 +1,7 @@
+services:
+  test:
+    build: .
+    user: root
+    command: ["php", "tests/run.php"]
+    environment:
+      NEO_SECURE_COOKIES: "0"

@@ -1,0 +1,28 @@
+services:
+  web:
+    image: nginx:stable-alpine
+    ports: ["127.0.0.1:${NEO_HTTP_PORT:-8080}:80"]
+    volumes:
+      - ./public:/app/public:ro
+      - ./docker/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - neo-data:/app/var:ro
+    depends_on: [app]
+    restart: unless-stopped
+  app:
+    build: .
+    environment: &env
+      NEO_DATA: /app/var
+      NEO_SETUP_TOKEN: ${NEO_SETUP_TOKEN:?Set NEO_SETUP_TOKEN in .env}
+      NEO_MAX_UPLOAD: ${NEO_MAX_UPLOAD:-10737418240}
+      NEO_SECURE_COOKIES: ${NEO_SECURE_COOKIES:-1}
+      NEO_X_ACCEL: "1"
+    volumes: ["neo-data:/app/var"]
+    restart: unless-stopped
+  worker:
+    build: .
+    environment: *env
+    command: ["php", "bin/worker.php"]
+    volumes: ["neo-data:/app/var"]
+    restart: unless-stopped
+volumes:
+  neo-data:

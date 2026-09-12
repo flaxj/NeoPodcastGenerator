@@ -1,0 +1,6 @@
+.vs/
+/vendor/
+/var/
+/.env
+/.tools/
+/test-results/
