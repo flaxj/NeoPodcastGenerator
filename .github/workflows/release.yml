@@ -1,6 +1,7 @@
 name: Validate and publish upload-ready release
 on:
   push:
+    branches: [main, 'codex/**']
     tags: ['v*']
   pull_request:
   workflow_dispatch:
