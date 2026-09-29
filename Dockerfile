@@ -1,6 +1,6 @@
 FROM composer:2 AS composer
 FROM php:8.4-fpm-bookworm
-RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg libsqlite3-dev libxml2-dev \
+RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg unzip libsqlite3-dev libxml2-dev \
     && docker-php-ext-install pdo_sqlite dom \
     && rm -rf /var/lib/apt/lists/*
 COPY --from=composer /usr/bin/composer /usr/local/bin/composer
