@@ -30,7 +30,7 @@ jobs:
           tools: composer:2.10.3
       - run: sudo apt-get update && sudo apt-get install -y ffmpeg
       - run: composer install --no-dev --classmap-authoritative --no-interaction --prefer-dist
-      - run: php tests/package.php
+      - run: php tests/package.php --manifest
       - run: find src templates public bin tests -name '*.php' -print0 | xargs -0 -n1 php -l
       - name: Test extracted ZIP on web server
         env:

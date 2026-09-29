@@ -50,6 +50,7 @@ $check(hash_file('sha256', $archive) === $digest, 'repeat builds and optional v 
 $zip = new ZipArchive();
 $check($zip->open($archive) === true, 'release ZIP opens');
 $names = [];
+$manifest = [];
 for ($i = 0; $i < $zip->numFiles; $i++) {
     $name = $zip->getNameIndex($i);
     if ($name === '_neo/config.php' || str_contains($name, '..') || str_starts_with($name, '/') || str_contains($name, '\\')
@@ -64,6 +65,10 @@ for ($i = 0; $i < $zip->numFiles; $i++) {
         throw new RuntimeException('Unexpected timestamp: '.$name);
     }
     $names[] = $name;
+    $manifest[$name] = ['sha256' => hash('sha256', $zip->getFromIndex($i)), 'stat' => $zip->statIndex($i)];
+}
+if (in_array('--manifest', $argv, true)) {
+    echo 'PACKAGE_MANIFEST '.json_encode($manifest, JSON_THROW_ON_ERROR)."\n";
 }
 $sorted = $names;
 sort($sorted);
