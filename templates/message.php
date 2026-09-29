@@ -1,1 +1,1 @@
-<div class="narrow panel"><p class="eyebrow">NEO PODCAST GENERATOR</p><h1><?= $escape($title) ?></h1><p><?= $escape($message) ?></p><div class="actions"><button type="button" class="secondary" data-back>Go back</button><a href="/">Go to the show</a></div></div>
+<div class="narrow panel"><p class="eyebrow">NEO PODCAST GENERATOR</p><h1><?= $escape($title) ?></h1><p><?= $escape($message) ?></p><div class="actions"><button type="button" class="secondary" data-back>Go back</button><a href="<?= $escape(\Neo\Config::basePath()) ?>/">Go to the show</a></div></div>

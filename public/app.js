@@ -1,4 +1,6 @@
 'use strict';
+const basePath = document.querySelector('meta[name="neo-base-path"]')?.content || '';
+const chunkSize = Number(document.querySelector('meta[name="neo-chunk-size"]')?.content || 8388608);
 const csrf = document.querySelector('meta[name="csrf-token"]')?.content;
 document.querySelectorAll('[data-confirm]').forEach(form => form.addEventListener('submit', event => { if (!confirm(form.dataset.confirm)) event.preventDefault(); }));
 document.querySelectorAll('[data-back]').forEach(button => button.addEventListener('click', () => history.back()));
@@ -8,7 +10,7 @@ document.querySelectorAll('[data-copy]').forEach(button => button.addEventListen
   catch { input.focus(); input.select(); button.textContent = 'Select & copy the URL'; }
 }));
 async function api(url, options = {}) {
-  const response = await fetch(url, { ...options, headers: { 'X-CSRF-Token': csrf, ...options.headers } });
+  const response = await fetch(basePath + url, { ...options, headers: { 'X-CSRF-Token': csrf, ...options.headers } });
   let body; try { body = await response.json(); } catch { throw new Error('Server response interrupted. Reselect your file to resume.'); }
   if (!response.ok) throw new Error(body.error || `Request failed (${response.status}).`);
   return body;
@@ -19,7 +21,7 @@ if (uploadForm) uploadForm.addEventListener('submit', async event => {
   const file = document.getElementById('media-file').files[0]; if (!file) return;
   const button = document.getElementById('upload-button'), progress = document.getElementById('upload-progress'), status = document.getElementById('upload-status');
   button.disabled = true; progress.hidden = false; status.textContent = 'Preparing upload…';
-  const key = `neo-upload:${uploadForm.dataset.episode}`;
+  const key = `neo-upload:${basePath}:${uploadForm.dataset.episode}`;
   try {
     // Hash the selected file incrementally by chunk digests. Reselection must match the entire source.
     const hashes = [];
@@ -40,13 +42,15 @@ if (uploadForm) uploadForm.addEventListener('submit', async event => {
     }
     let offset = Number(upload.offset);
     while (offset < file.size) {
-      const body = file.slice(offset, offset + 8388608);
+      const body = file.slice(offset, offset + chunkSize);
       const result = await api(`/api/uploads/${upload.id}`, { method: 'PUT', headers: { 'Upload-Offset': String(offset), 'Content-Type': 'application/octet-stream' }, body });
       offset = result.offset; progress.value = offset / file.size * 100;
       status.textContent = `Uploading… ${Math.round(progress.value)}%`;
     }
-    await api(`/api/uploads/${upload.id}/finish`, { method: 'POST' });
-    localStorage.removeItem(key); status.textContent = 'Upload complete. Media processing is queued.'; location.reload();
+    const result = await api(`/api/uploads/${upload.id}/finish`, { method: 'POST' });
+    localStorage.removeItem(key);
+    status.textContent = result.state === 'ready' ? 'Your MP3 is ready.' : (result.error || 'Upload complete. Media processing is queued.');
+    location.reload();
   } catch (error) { status.textContent = error.message; }
   finally { button.disabled = false; }
 });

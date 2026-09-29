@@ -13,7 +13,7 @@ final class Worker
     {
         $this->store->run('INSERT INTO health(id,heartbeat) VALUES(1,?) ON CONFLICT(id) DO UPDATE SET heartbeat=excluded.heartbeat', [time()]);
     }
-    public function once(): bool
+    public function once(?string $uploadId = null): bool
     {
         // A process-wide filesystem lock prevents another worker reclaiming a live conversion.
         $lock = fopen($this->store->root.'/worker.lock', 'c');
@@ -24,9 +24,9 @@ final class Worker
         }
         try {
             $this->heartbeat();
-            $job = $this->store->transaction(function (): ?array {
+            $job = $this->store->transaction(function () use ($uploadId): ?array {
                 $this->store->run("UPDATE jobs SET state='queued' WHERE state='processing'");
-                $j = $this->store->one("SELECT * FROM jobs WHERE state='queued' ORDER BY created_at,id LIMIT 1");
+                $j = $uploadId === null ? $this->store->one("SELECT * FROM jobs WHERE state='queued' ORDER BY created_at,id LIMIT 1") : $this->store->one("SELECT * FROM jobs WHERE state='queued' AND upload_id=? LIMIT 1", [$uploadId]);
                 if ($j) {
                     $this->store->run("UPDATE jobs SET state='processing',error=NULL,updated_at=? WHERE id=?", [time(),$j['id']]);
                 }

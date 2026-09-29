@@ -12,6 +12,10 @@ final class App
     {
         $this->settings = $store->settings();
         $this->path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH) ?: '/';
+        $prefix = Config::basePath();
+        if ($prefix !== '') {
+            $this->path = str_starts_with($this->path, $prefix.'/') ? substr($this->path, strlen($prefix)) : ($this->path === $prefix ? '/' : '/__outside_installation');
+        }
     }
     public function run(): void
     {
@@ -41,9 +45,11 @@ final class App
     private function session(): void
     {
         if (session_status() !== PHP_SESSION_ACTIVE) {
-            session_name('neo_session');
+            // A subfolder must not consume a parent site's PHP session cookie.
+            $suffix = Config::basePath() === '' ? '' : '_'.substr(hash('sha256', Config::basePath()), 0, 12);
+            session_name('neo_session'.$suffix);
             ini_set('session.use_strict_mode', '1');
-            session_set_cookie_params(['secure' => getenv('NEO_SECURE_COOKIES') !== '0','httponly' => true,'samesite' => 'Lax','path' => '/']);
+            session_set_cookie_params(['secure' => \Neo\Config::get('NEO_SECURE_COOKIES') !== '0','httponly' => true,'samesite' => 'Lax','path' => Config::url('/')]);
             session_start();
         }
         $_SESSION['csrf'] ??= bin2hex(random_bytes(32));
@@ -60,7 +66,7 @@ final class App
     }
     private function redirect(string $path): never
     {
-        header('Location: '.$path, true, 303);
+        header('Location: '.Config::url($path), true, 303);
         exit;
     }
     private function json(array $data): void
@@ -228,6 +234,12 @@ final class App
                         }
                         $this->store->run("UPDATE jobs SET state='queued',error=NULL,updated_at=? WHERE episode_id=? AND state='failed'", [time(),$e['id']]);
                     });
+                        if (Config::shared()) {
+                            $job = $this->store->one("SELECT upload_id FROM jobs WHERE episode_id=? AND state='queued'", [$e['id']]);
+                            if ($job) {
+                                (new Worker($this->store))->once($job['upload_id']);
+                            }
+                        }
                         break;
                     default: $pub->save($e['id'], $_POST);
                 }
@@ -303,8 +315,8 @@ final class App
         }
         $s['base_url'] = rtrim($s['base_url'], '/');
         $url = parse_url($s['base_url']);
-        if (!filter_var($s['base_url'], FILTER_VALIDATE_URL) || ($url['scheme'] ?? '') !== 'https' || isset($url['query'],$url['fragment']) || isset($url['user']) || isset($url['pass']) || !empty($url['path']) || isset($url['query']) || isset($url['fragment'])) {
-            throw new \InvalidArgumentException('Public URL must be an HTTPS origin, such as https://podcast.example.com, without a path or credentials.');
+        if (!filter_var($s['base_url'], FILTER_VALIDATE_URL) || ($url['scheme'] ?? '') !== 'https' || isset($url['query'],$url['fragment']) || isset($url['user']) || isset($url['pass']) || rtrim($url['path'] ?? '', '/') !== Config::basePath() || isset($url['query']) || isset($url['fragment'])) {
+            throw new \InvalidArgumentException('Public URL must use HTTPS and match the configured installation path, without credentials, query, or fragment.');
         }
         if (!$s['title'] || !$s['description'] || !$s['owner_name'] || !filter_var($s['owner_email'], FILTER_VALIDATE_EMAIL) || !preg_match('/^[a-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$/D', $s['language'])) {
             throw new \InvalidArgumentException('Complete the show information with a valid owner email and language code.');
@@ -326,7 +338,7 @@ final class App
     }
     private function setup(): void
     {
-        $secret = getenv('NEO_SETUP_TOKEN') ?: '';
+        $secret = \Neo\Config::get('NEO_SETUP_TOKEN') ?: '';
         if (strlen($secret) < 20 || !hash_equals($secret, (string)($_POST['setup_token'] ?? ''))) {
             throw new \InvalidArgumentException('Enter the setup token configured on the server (at least 20 characters).');
         }
@@ -336,13 +348,15 @@ final class App
         if ($username === '' || strlen($username) > 100 || strlen($password) < 12 || strlen($password) > 72) {
             throw new \InvalidArgumentException('Choose a username and a password of 12–72 bytes.');
         }
-        if (!$this->checks()['worker']) {
-            throw new \RuntimeException('Start the background worker before completing setup.');
-        }
-        Process::run([getenv('FFPROBE_BIN') ?: 'ffprobe','-version']);
-        $encoders = Process::run([getenv('FFMPEG_BIN') ?: 'ffmpeg','-hide_banner','-encoders']);
-        if (!str_contains($encoders, 'libmp3lame')) {
-            throw new \RuntimeException('FFmpeg requires the libmp3lame encoder.');
+        if (!Config::shared()) {
+            if (!$this->checks()['worker']) {
+                throw new \RuntimeException('Start the background worker before completing setup.');
+            }
+            Process::run([Config::get('FFPROBE_BIN') ?: 'ffprobe','-version']);
+            $encoders = Process::run([Config::get('FFMPEG_BIN') ?: 'ffmpeg','-hide_banner','-encoders']);
+            if (!str_contains($encoders, 'libmp3lame')) {
+                throw new \RuntimeException('FFmpeg requires the libmp3lame encoder.');
+            }
         }
         $this->store->transaction(function () use ($s, $username, $password): void {
             if ($this->store->settings()) {
@@ -393,8 +407,7 @@ final class App
         }
         if (preg_match('~^/api/uploads/([a-f0-9-]{36})(?:/(finish))?$~D', $this->path, $m)) {
             if (isset($m[2]) && $method === 'POST') {
-                $uploads->finish($m[1]);
-                $this->json(['queued' => true]);
+                $this->json($uploads->finish($m[1]));
                 return;
             }
             if (!isset($m[2]) && $method === 'GET') {
@@ -406,7 +419,7 @@ final class App
                 if (!ctype_digit($offset)) {
                     throw new \InvalidArgumentException('Upload-Offset must be a nonnegative integer.');
                 }
-                $chunk = file_get_contents('php://input', false, null, 0, 8388609);
+                $chunk = file_get_contents('php://input', false, null, 0, Config::chunkSize() + 1);
                 $next = $uploads->append($m[1], (int)$offset, $chunk);
                 $this->json(['offset' => $next]);
                 return;
@@ -420,6 +433,13 @@ final class App
                 http_response_code(404);
                 $this->json(['error' => 'Episode not found.']);
                 return;
+            }
+            // Authenticated polling recovers interrupted shared-hosting requests.
+            if (Config::shared()) {
+                $pending = $this->store->one("SELECT upload_id FROM jobs WHERE episode_id=? AND state IN ('queued','processing')", [$m[1]]);
+                if ($pending) {
+                    (new Worker($this->store))->once($pending['upload_id']);
+                }
             }
             $j = $this->store->one('SELECT state,error FROM jobs WHERE episode_id=? ORDER BY created_at DESC,rowid DESC LIMIT 1', [$m[1]]);
             $this->json(['state' => $j['state'] ?? ($e['audio_id'] ? 'ready' : 'empty'),'error' => $j['error'] ?? null]);

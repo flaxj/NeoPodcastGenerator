@@ -8,7 +8,7 @@ try {
             $heartbeat = $store->one('SELECT heartbeat FROM health WHERE id=1');
             $worker = $heartbeat && time() - (int)$heartbeat['heartbeat'] < 30;
             echo json_encode(['storage' => is_writable($store->root),'worker_online' => (bool)$worker,'schema' => $store->all('SELECT version FROM migrations'),'free_bytes' => disk_free_space($store->root)], JSON_PRETTY_PRINT)."\n";
-            exit($worker ? 0 : 1);
+            exit((Neo\Config::shared() || $worker) && is_writable($store->root) ? 0 : 1);
         case 'backup':
             (new Neo\Maintenance($store))->backup($argv[2] ?? '');
             echo "Backup complete. Copy this directory off the server.\n";

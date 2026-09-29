@@ -26,7 +26,7 @@ final class Http
             http_response_code(404);
             return;
         }
-        if (getenv('NEO_X_ACCEL') === '1') {
+        if (\Neo\Config::get('NEO_X_ACCEL') === '1') {
             header('Content-Type: '.$mime);
             header('Cache-Control: '.($private ? 'private, no-store' : 'public, max-age=3600'));
             header('X-Accel-Redirect: /_protected/'.rawurlencode(basename($path)));

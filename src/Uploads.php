@@ -12,8 +12,8 @@ final class Uploads
     public function create(string $episode, string $name, int $size): array
     {
         $ext = strtolower(pathinfo($name, PATHINFO_EXTENSION));
-        if (!in_array($ext, ['mp3','mov','mp4'], true) || $size < 1 || $size > (int)(getenv('NEO_MAX_UPLOAD') ?: 10737418240)) {
-            throw new \InvalidArgumentException('Choose an MP3, MOV or MP4 within the configured upload limit.');
+        if (!in_array($ext, (Config::shared() ? ['mp3'] : ['mp3','mov','mp4']), true) || $size < 1 || $size > (int)(\Neo\Config::get('NEO_MAX_UPLOAD') ?: 10737418240)) {
+            throw new \InvalidArgumentException(Config::shared() ? 'Choose an MP3 within the upload limit. Video conversion requires a server installation.' : 'Choose an MP3, MOV or MP4 within the configured upload limit.');
         }
         return $this->store->transaction(function () use ($episode, $ext, $size): array {
             if (!$this->store->one('SELECT id FROM episodes WHERE id=?', [$episode])) {
@@ -34,7 +34,7 @@ final class Uploads
     }
     public function append(string $id, int $offset, string $chunk): int
     {
-        if (strlen($chunk) < 1 || strlen($chunk) > 8388608) {
+        if (strlen($chunk) < 1 || strlen($chunk) > Config::chunkSize()) {
             throw new \InvalidArgumentException('Invalid chunk size.');
         }
         return $this->store->transaction(function () use ($id, $offset, $chunk): int {
@@ -60,7 +60,7 @@ final class Uploads
             return $next;
         });
     }
-    public function finish(string $id): void
+    public function finish(string $id): array
     {
         $this->store->transaction(function () use ($id): void {
             $u = $this->get($id);
@@ -74,5 +74,10 @@ final class Uploads
             $this->store->run('INSERT INTO jobs(id,episode_id,upload_id,created_at,updated_at) VALUES(?,?,?,?,?)', [Store::uuid(),$u['episode_id'],$id,time(),time()]);
             $this->store->run("UPDATE uploads SET status='queued' WHERE id=?", [$id]);
         });
+        if (Config::shared()) {
+            (new Worker($this->store))->once($id);
+        }
+        $job = $this->store->one('SELECT state,error FROM jobs WHERE upload_id=?', [$id]);
+        return ['queued' => in_array($job['state'] ?? '', ['queued','processing'], true), 'state' => $job['state'] ?? 'empty', 'error' => $job['error'] ?? null];
     }
 }

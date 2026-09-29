@@ -26,3 +26,40 @@ Docker Engine is unavailable on the implementation workstation. Dockerfile, Comp
 The optional WSL Bash syntax-check request was rejected by automatic approval review because the review service reported a usage limit. That action was not retried.
 
 Public HTTPS/DNS/certificate reachability, full-size 10 GiB uploads under load, server capacity, and Spotify account ingestion/video replacement require the destination environment and have not been claimed as locally verified. CI runs the real-media suite inside the PHP image on Linux.
+# Upload-ready package validation
+
+With PHP 8.4 (PDO SQLite, DOM, Fileinfo, Zip), Composer, FFmpeg, Docker and Bash:
+
+```sh
+composer install --no-dev --classmap-authoritative
+php tests/package.php
+bash tests/package-stack.sh apache
+bash tests/package-stack.sh apache /podcast
+bash tests/package-stack.sh nginx
+bash tests/package-stack.sh nginx /podcast
+```
+
+Each test builds/extracts the release ZIP, verifies its allowlist, runs MP3
+processing with process execution disabled, installs it on the selected web
+server, and tests setup, publishing, private-file protection, media delivery,
+subfolder URLs, and upgrade preservation. The web containers contain neither
+Composer nor FFmpeg. Fixtures are generated outside the application container.
+The release workflow requires all four configurations and the existing server
+suite to pass before publishing. Logs are retained under `test-results/`.
+
+## Release 1.0.0 local checks (2026-09-28)
+
+The Windows PHP 8.4.25 run passed all 117 server assertions and all 25 shared-mode
+checks against the extracted 1.0.0 ZIP, with process execution disabled for shared
+mode. PHP syntax checks passed. The packaging regression checks cover relocated
+autoloading, complete runtime files, checksum/version, sorted entries, normalized
+permissions/timestamps, repeat builds, CRLF normalization, Composer suffix
+normalization, and rejection of mismatched dependencies or missing inputs without
+overwriting the previous release. Linux CI additionally checks symlink rejection.
+Composer validation reports the intentional exact getID3 version constraint as a
+warning; the dependency remains pinned for packaging.
+
+Apache/Nginx root and subfolder deployment checks require Docker and are gated in
+the release workflow; they were not run on this Windows workstation. The workflow
+publishes the exact versioned ZIP and checksum, downloads them again, and compares
+their bytes with the build outputs before verifying the downloaded checksum.

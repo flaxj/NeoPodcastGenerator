@@ -1,5 +1,8 @@
 # Deployment
 
+For upload-ready Apache/Nginx releases, see [shared hosting](SHARED-HOSTING.md).
+This page describes the full source/server build with FFmpeg and its worker.
+
 ## HTTPS
 
 Compose binds Nginx to `127.0.0.1:8080`. Put a host-level TLS reverse proxy in front. Example Caddyfile:

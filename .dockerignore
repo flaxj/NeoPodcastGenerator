@@ -5,3 +5,5 @@ var
 test-results
 vendor
 .env
+config.php
+dist

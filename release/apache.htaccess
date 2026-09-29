@@ -1,0 +1,11 @@
+Options -Indexes -MultiViews
+DirectoryIndex index.php
+RewriteEngine On
+
+# Only the front controller and these static assets are public.
+RewriteRule ^_neo(?:/|$) - [F,END,NC]
+RewriteRule (^|/)\. - [F,END]
+RewriteRule ^index\.php$ - [END]
+RewriteRule \.(?:php[0-9]?|phtml|phar)(?:/|$) - [F,END,NC]
+RewriteRule ^(?:app\.css|app\.js)$ - [END]
+RewriteRule ^ index.php [END]

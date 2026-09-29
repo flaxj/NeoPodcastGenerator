@@ -12,7 +12,18 @@ A self-hosted PHP podcast publisher with a public website, private studio, and s
 - PHP 8.4, SQLite migrations, FFmpeg, Docker Compose, Nginx, PHP-FPM, and background worker.
 - Backup, restore guidance, storage cleanup, password recovery, and real-media integration tests.
 
-## Install on a VPS
+## Install on shared hosting (Apache or Nginx)
+
+Download the upload-ready ZIP from Releases and follow [shared-hosting installation](docs/SHARED-HOSTING.md).
+It includes all PHP dependencies and website assets. Shared mode publishes MP3
+episodes without Composer, Docker, FFmpeg, or a background worker. Install at a
+domain root or a subfolder such as `/podcast`. Apache uses the included `.htaccess`;
+Nginx requires the included configuration to be applied by you or your provider.
+
+## Build from source on a VPS or server
+
+Clone this repository or download a Source code archive for the complete build,
+including Docker and automatic video conversion. Source builds default to server mode.
 
 Requires Docker Engine with Compose, a domain, an HTTPS reverse proxy, and local disk storage. Allow at least two copies of an uploaded video during processing plus MP3 output; replacements and backups need additional space. Two CPU cores and 2 GiB RAM are a starting point, not a capacity guarantee.
 
@@ -23,7 +34,7 @@ Requires Docker Engine with Compose, a domain, an HTTPS reverse proxy, and local
 5. Upload square JPG/PNG artwork (1400–3000 pixels, under 5 MB) in **Settings**.
 6. Create a draft, add media, wait for **Ready**, preview it, then select **Publish episode**.
 
-Keep `NEO_SECURE_COOKIES=1` in production. HTTP will not retain the secure administrator cookie. `NEO_SECURE_COOKIES=0` is for loopback development only. The show URL must be a dedicated HTTPS origin without a path.
+Keep `NEO_SECURE_COOKIES=1` in production. HTTP will not retain the secure administrator cookie. `NEO_SECURE_COOKIES=0` is for loopback development only. The supplied Compose deployment uses a dedicated HTTPS origin. Subfolder installations must configure `NEO_BASE_PATH` and use the matching public show URL.
 
 ## Distribution
 
@@ -54,6 +65,19 @@ Tests synthesize short media fixtures, exercise conversion/publication, and laun
 For a disposable visual preview, set `NEO_DATA` to a new directory under `test-results/`, run `php tests/preview.php /path/to/test-video.mp4`, then start `php -S 127.0.0.1:8787 -t public public/router.php` with the same data directory and `NEO_SECURE_COOKIES=0`. Run `php bin/worker.php` separately with the same environment. Never use the preview credentials in production.
 
 See [architecture](docs/ARCHITECTURE.md), [operations](docs/OPERATIONS.md), and [validation](docs/VALIDATION.md).
+
+## Build an upload-ready release
+
+Run `composer install --no-dev --classmap-authoritative`, then
+`php bin/package.php 1.0.0` with PHP's Zip extension enabled. The ZIP and SHA-256
+checksum are written to `dist/`. Version tags (`v1.0.0`, for example) trigger the
+release workflow, which tests both server modes before attaching the upload-ready
+ZIP and checksum. Use Composer 2.10.3 to match the release workflow, and run
+`php tests/package.php` to check dependency rejection, archive contents,
+relocated autoloading, and repeat-build consistency. The builder normalizes text
+line endings, timestamps, permissions, and Composer root metadata; ZIP entries
+are stored without compression to avoid compression-library differences.
+Source archives remain available separately. See [shared-hosting installation](docs/SHARED-HOSTING.md).
 
 ## License and origin
 

@@ -11,6 +11,7 @@ services:
   app:
     build: .
     environment: &env
+      NEO_MODE: server
       NEO_DATA: /app/var
       NEO_SETUP_TOKEN: ${NEO_SETUP_TOKEN:?Set NEO_SETUP_TOKEN in .env}
       NEO_MAX_UPLOAD: ${NEO_MAX_UPLOAD:-10737418240}

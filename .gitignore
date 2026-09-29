@@ -4,3 +4,5 @@
 /.env
 /.tools/
 /test-results/
+/config.php
+/dist/
