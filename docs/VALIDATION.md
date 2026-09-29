@@ -54,7 +54,7 @@ checks against the extracted 1.0.0 ZIP, with process execution disabled for shar
 mode. PHP syntax checks passed. The packaging regression checks cover relocated
 autoloading, complete runtime files, checksum/version, sorted entries, normalized
 permissions/timestamps, repeat builds, CRLF normalization, Composer suffix
-normalization, and rejection of mismatched dependencies or missing inputs without
+normalization, timezone-independent ZIP headers, and rejection of mismatched dependencies or missing inputs without
 overwriting the previous release. Linux CI additionally checks symlink rejection.
 Composer validation reports the intentional exact getID3 version constraint as a
 warning; the dependency remains pinned for packaging.
@@ -63,3 +63,9 @@ Apache/Nginx root and subfolder deployment checks require Docker and are gated i
 the release workflow; they were not run on this Windows workstation. The workflow
 publishes the exact versioned ZIP and checksum, downloads them again, and compares
 their bytes with the build outputs before verifying the downloaded checksum.
+
+GitHub Linux CI subsequently passed all four Apache/Nginx installation/upgrade
+configurations and the server regression/HTTPS stack tests. The Windows and Linux
+`0.0.0-test` archives matched SHA-256
+`cbbb7b564a48f3d96e9a19457875a73546a3406cd3e72b852d6c4a4faa55fece`
+after normalizing the C runtime timezone used by libzip, as well as PHP's timezone.

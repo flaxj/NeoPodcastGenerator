@@ -5,6 +5,8 @@ declare(strict_types=1);
 // Build tooling only; not included in the upload-ready archive.
 $root = dirname(__DIR__);
 date_default_timezone_set('UTC');
+// libzip uses the C runtime timezone when writing DOS timestamps.
+putenv('TZ=UTC');
 $version = $argv[1] ?? '';
 if (!preg_match('/^v?\d+\.\d+\.\d+(?:-[A-Za-z0-9.-]+)?$/D', $version)) {
     throw new RuntimeException('Usage: php bin/package.php <version>');

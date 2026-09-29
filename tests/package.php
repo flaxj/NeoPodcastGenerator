@@ -5,6 +5,7 @@ declare(strict_types=1);
 // Exercise the builder in an isolated source copy, leaving local releases intact.
 $root = dirname(__DIR__);
 date_default_timezone_set('UTC');
+putenv('TZ=UTC');
 $run = $root.'/test-results/package-build-'.bin2hex(random_bytes(6));
 mkdir($run, 0770, true);
 $files = ['bin/package.php', 'bootstrap.php', 'composer.lock', 'config.example.php', 'LICENSE', 'NOTICE'];
@@ -25,8 +26,10 @@ $php = [PHP_BINARY];
 if (PHP_OS_FAMILY === 'Windows') {
     $php = [...$php, '-n', '-d', 'extension_dir='.realpath(ini_get('extension_dir')), '-d', 'extension=zip'];
 }
-$build = static function (string $version = '1.0.0', bool $success = true) use ($php, $run): void {
-    $process = proc_open([...$php, $run.'/bin/package.php', $version], [0 => ['pipe', 'r'], 1 => ['file', $run.'/build.log', 'a'], 2 => ['file', $run.'/build.log', 'a']], $pipes, $run);
+$build = static function (string $version = '1.0.0', bool $success = true, string $timezone = 'UTC') use ($php, $run): void {
+    $environment = getenv();
+    $environment['TZ'] = $timezone;
+    $process = proc_open([...$php, $run.'/bin/package.php', $version], [0 => ['pipe', 'r'], 1 => ['file', $run.'/build.log', 'a'], 2 => ['file', $run.'/build.log', 'a']], $pipes, $run, $environment);
     if (!is_resource($process)) {
         throw new RuntimeException('Cannot launch package builder');
     }
@@ -45,8 +48,9 @@ $build();
 $archive = $run.'/dist/neo-podcast-generator-1.0.0.zip';
 $digest = hash_file('sha256', $archive);
 $check(file_get_contents($archive.'.sha256') === $digest.'  '.basename($archive)."\n", 'checksum matches archive');
-$build('v1.0.0');
-$check(hash_file('sha256', $archive) === $digest, 'repeat builds and optional v prefix are byte-identical');
+$build('v1.0.0', timezone: 'PST8PDT');
+$check(hash_file('sha256', $archive) === $digest, 'repeat builds, timezone changes, and optional v prefix are byte-identical');
+$check(bin2hex(substr(file_get_contents($archive), 10, 4)) === '00002128', 'ZIP DOS timestamp is midnight UTC on 2000-01-01');
 $zip = new ZipArchive();
 $check($zip->open($archive) === true, 'release ZIP opens');
 $names = [];
